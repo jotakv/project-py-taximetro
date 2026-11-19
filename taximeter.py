@@ -1,9 +1,16 @@
 from taxi import Taxi
 # US-05: Importamos la función para consultar el histórico
 from historial import mostrar_historial_hoy
+# US-06: Importamos el logger de TaxiTech
+from registro import logger
+
 
 # Creamos nuestro objeto Taxi
 taxi = Taxi()
+
+# US-06: Registramos el inicio de TaxiTech
+logger.info("aplicacion_iniciada")
+
 
 # Mostramos el título de la aplicación
 print("=============================")
@@ -50,24 +57,51 @@ while True:
         taxi.finalizar_carrera()
     
     # US-05: Consultar las carreras guardadas hoy
+   
+    # US-05 y US-06: Consultar el histórico
     elif opcion == "6":
-        mostrar_historial_hoy()
 
-    
-    # Salir de TaxiTech
+        try:
+            mostrar_historial_hoy()
+
+            # Registramos la consulta realizada
+            logger.info("historico_consultado")
+
+        # Gestionamos errores de lectura o formato del CSV
+        except (OSError, ValueError, KeyError) as error:
+            print("Error al consultar el histórico:", error)
+
+            # Guardamos los detalles técnicos
+            logger.exception("error_consultando_historico")
+
+
+    # Salir del programa
     elif opcion == "7":
 
-        # No permitimos salir si todavía hay una carrera
         if taxi.carrera_activa:
             print("Primero debes finalizar la carrera.")
 
-        # Si no hay una carrera, cerramos la aplicación
+            # US-06: Intento de salida no permitido
+            logger.warning(
+                "salida_rechazada | motivo=carrera_activa"
+            )
+
         else:
             print("Gracias por utilizar TaxiTech.")
+
+            # US-06: Cierre normal de la aplicación
+            logger.info("aplicacion_finalizada")
+
             break
 
-
-
+    
     # Gestionar opciones incorrectas
     else:
         print("Opción incorrecta. Inténtalo de nuevo.")
+
+        # US-06: Registramos la opción desconocida
+        logger.warning(
+            "opcion_invalida | valor=%s",
+            opcion
+        )
+
