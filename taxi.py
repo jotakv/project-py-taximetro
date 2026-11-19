@@ -1,7 +1,9 @@
 import time
 # importo aqui el modulo para medir el tiempo
 # Importamos las tarifas desde el archivo tarifas.py
-from tarifas import TARIFA_PARADO, TARIFA_MOVIMIENTO
+# US-07: Función que lee las tarifas configurables
+from tarifas import cargar_tarifas
+
 # US-05: Importamos la función que guarda carreras en CSV
 from historial import guardar_carrera
 # US-06: Importamos el registrador de eventos
@@ -19,6 +21,10 @@ class Taxi:
         self.ultimo_tiempo = 0.0
         self.importe_total = 0.0
         self.numero_carrera = 0
+        # US-07: Tarifas utilizadas por la carrera actual
+        self.tarifa_parado = 0.0
+        self.tarifa_movimiento = 0.0
+
 
 
     
@@ -35,6 +41,31 @@ class Taxi:
             return
         # Registramos el momento en que comienza
         tiempo_actual = time.monotonic()
+
+        # US-07: Cargamos las tarifas antes de iniciar
+        try:
+
+            # Leemos los precios actuales del JSON
+            (
+                self.tarifa_parado,
+                self.tarifa_movimiento
+            ) = cargar_tarifas()
+
+        # Si el archivo falta o es incorrecto
+        except (OSError, ValueError) as error:
+
+            # Informamos al conductor
+            print("No se puede iniciar la carrera.")
+            print("Error en las tarifas:", error)
+
+            # Registramos el error técnico (US-06)
+            logger.exception(
+                "error_cargando_tarifas"
+            )
+
+            # No iniciamos una carrera sin tarifas válidas
+            return
+
         # Activamos la nueva carrera
         self.carrera_activa = True
         # El taxi empieza parado
@@ -47,6 +78,14 @@ class Taxi:
         self.importe_total = 0.0
         # US-04: Sumamos una carrera al contador
         self.numero_carrera += 1
+
+        # US-07: Registramos los precios de esta carrera
+        logger.info(
+            "tarifas_aplicadas | numero=%s | parado=%.2f | movimiento=%.2f",
+            self.numero_carrera,
+            self.tarifa_parado,
+            self.tarifa_movimiento
+        )
 
         # US-06: Registramos que se inició la carrera
         logger.info(
@@ -76,10 +115,13 @@ class Taxi:
         segundos = tiempo_actual - self.ultimo_tiempo
 
         # Seleccionamos la tarifa según el estado
+        
+        # US-07: Utilizamos las tarifas de esta carrera
         if self.en_movimiento:
-            tarifa = TARIFA_MOVIMIENTO
+            tarifa = self.tarifa_movimiento
         else:
-            tarifa = TARIFA_PARADO
+            tarifa = self.tarifa_parado
+
 
         # Calculamos cuánto cuesta este tramo
         importe_tramo = segundos * tarifa
