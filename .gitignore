@@ -5,3 +5,5 @@ __pycache__/
 # Histórico de carreras generado durante la ejecución
 historial_carreras.csv
 
+# US-06: Logs técnicos generados por TaxiTech
+taxitech.log*

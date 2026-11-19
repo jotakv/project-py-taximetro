@@ -4,6 +4,8 @@ import time
 from tarifas import TARIFA_PARADO, TARIFA_MOVIMIENTO
 # US-05: Importamos la función que guarda carreras en CSV
 from historial import guardar_carrera
+# US-06: Importamos el registrador de eventos
+from registro import logger
 
 
 class Taxi:
@@ -25,6 +27,11 @@ class Taxi:
         # Comprobamos si ya hay una carrera activa
         if self.carrera_activa:
             print("Ya hay una carrera activa.")
+            # US-06: Registramos el intento no permitido
+            logger.warning(
+                "inicio_rechazado | motivo=carrera_activa | numero=%s",
+                self.numero_carrera
+            )
             return
         # Registramos el momento en que comienza
         tiempo_actual = time.monotonic()
@@ -40,6 +47,13 @@ class Taxi:
         self.importe_total = 0.0
         # US-04: Sumamos una carrera al contador
         self.numero_carrera += 1
+
+        # US-06: Registramos que se inició la carrera
+        logger.info(
+            "carrera_iniciada | numero=%s | estado=PARADO",
+            self.numero_carrera
+        )
+
         # Informamos al taxista
         print("\nCarrera iniciada.")
         print(f"Número de carrera: {self.numero_carrera}")
@@ -84,6 +98,7 @@ class Taxi:
         # No podemos mover el taxi sin iniciar carrera
         if not self.carrera_activa:
             print("Primero debes iniciar una carrera.")
+            logger.warning("movimiento_rechazado | motivo=sin_carrera")
             return
 
         # Comprobamos si ya está en movimiento
@@ -97,6 +112,11 @@ class Taxi:
         # Cambiamos el estado del taxi
         self.en_movimiento = True
 
+        # US-06: Guardamos el cambio de estado
+        logger.info(
+            "taxi_en_movimiento | numero=%s",
+            self.numero_carrera
+        )
         print("\nEl taxi está EN MOVIMIENTO.")
 
 
@@ -107,11 +127,13 @@ class Taxi:
         # Comprobamos que hay una carrera activa
         if not self.carrera_activa:
             print("Primero debes iniciar una carrera.")
+            logger.warning("parada_rechazada | motivo=sin_carrera")
             return
 
         # Comprobamos si ya está parado
         if not self.en_movimiento:
             print("El taxi ya está parado.")
+            logger.warning("parada_rechazada | motivo=sin_carrera")
             return
 
         # Calculamos el tiempo que estuvo en movimiento
@@ -119,6 +141,13 @@ class Taxi:
 
         # Cambiamos el estado a parado
         self.en_movimiento = False
+
+        # US-06: Registramos que el taxi se ha detenido
+        logger.info(
+            "taxi_parado | numero=%s",
+            self.numero_carrera
+        )
+
 
         print("\nEl taxi está PARADO.")
 
@@ -129,6 +158,12 @@ class Taxi:
         # No podemos consultar una carrera inexistente
         if not self.carrera_activa:
             print("No hay ninguna carrera activa.")
+
+            # US-06: Intento de finalizar sin carrera activa
+            logger.warning(
+                "finalizacion_rechazada | motivo=sin_carrera"
+            )
+
             return
 
         # Actualizamos el importe hasta este momento
@@ -151,6 +186,10 @@ class Taxi:
         # Comprobamos que existe una carrera activa
         if not self.carrera_activa:
             print("No hay ninguna carrera activa.")
+            # US-06: Intento de finalizar sin carrera activa
+            logger.warning(
+                "finalizacion_rechazada | motivo=sin_carrera"
+            )
             return
 
         # Calculamos los últimos segundos pendientes
@@ -166,11 +205,25 @@ class Taxi:
         # Si falla la escritura, informamos del problema
         except OSError as error:
             print("No se pudo guardar la carrera:", error)
+            # US-06: Registramos el error y su traceback
+            logger.exception(
+                "error_guardando_carrera | numero=%s",
+                self.numero_carrera
+            )
             return
 
         # Solo después de guardar, cerramos la carrera
         self.carrera_activa = False
         self.en_movimiento = False
+
+        # US-06: Registramos la finalización correcta
+        logger.info(
+            "carrera_finalizada | numero=%s | duracion_s=%.2f | importe_eur=%.2f",
+            self.numero_carrera,
+            duracion,
+            self.importe_total
+        )
+
 
         # Mostramos el resumen final
         print("\n=============================")
